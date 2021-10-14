@@ -2,7 +2,7 @@
 
 This project is used to read a sensor that has different discrete resistance values depending on the height of the float. An ESP32 is used to measure the resistor using a voltage divider:
 
-![voltage divider](doc/images/2021-10-14-07-35-51.png)
+![voltage divider](doc/images/2021-10-14-10-05-25.png)
 
 The following table shows the values and according sensor height that have been manually read and measured. Based on that I've derived sections with linear interpolation in between:
 
