@@ -1,27 +1,30 @@
 #include <Arduino.h>
 
+#include "ble.h"
+#include "esp32-hal-log.h"
+
 // Prints the reason for wakeup
 void print_wakeup_reason() {
   esp_sleep_wakeup_cause_t wakeup_reason;
   wakeup_reason = esp_sleep_get_wakeup_cause();
   switch (wakeup_reason) {
     case ESP_SLEEP_WAKEUP_EXT0:
-      Serial.println("Wakeup caused by external signal using RTC_IO");
+      log_v("Wakeup caused by external signal using RTC_IO");
       break;
     case ESP_SLEEP_WAKEUP_EXT1:
-      Serial.println("Wakeup caused by external signal using RTC_CNTL");
+      log_v("Wakeup caused by external signal using RTC_CNTL");
       break;
     case ESP_SLEEP_WAKEUP_TIMER:
-      Serial.println("Wakeup caused by timer");
+      log_v("Wakeup caused by timer");
       break;
     case ESP_SLEEP_WAKEUP_TOUCHPAD:
-      Serial.println("Wakeup caused by touchpad");
+      log_v("Wakeup caused by touchpad");
       break;
     case ESP_SLEEP_WAKEUP_ULP:
-      Serial.println("Wakeup caused by ULP program");
+      log_v("Wakeup caused by ULP program");
       break;
     default:
-      Serial.printf("Wakeup was not caused by deep sleep: %d\n", wakeup_reason);
+      log_v("Wakeup was not caused by deep sleep: %d\n", wakeup_reason);
       break;
   }
 }
@@ -30,8 +33,10 @@ void deepSleep(uint32_t secondsToSleep) {
   // Convert time before wakeup to microseconds
   esp_sleep_enable_timer_wakeup(secondsToSleep * 1000000);
   esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_OFF);
-  Serial.printf("Going to deep-sleep in 5 sec for %d sec\n", secondsToSleep);
+#if DCORE_DEBUG_LEVEL >= 5
+  log_v("Going to deep-sleep in 5 sec for %d sec\n", secondsToSleep);
   Serial.flush();
+#endif
   esp_deep_sleep_start();
 }
 
@@ -81,54 +86,64 @@ float analogToSensorHeight(uint16_t x) {
   return a * x + b;
 }
 
-float lastAvg = 0;
-float minThreshold = 0.15;
-int32_t state = 0;
-int32_t s0to1Cnt = 0;
-
-void setup() {
-  Serial.begin(115200);
-  // wait for serial port to connect. Needed for native USB
-  while (!Serial) {
-  }
-  print_wakeup_reason();  // Print the wakeup reason for ESP32
-
-  pinMode(D3, OUTPUT);
-  pinMode(D4, OUTPUT);
-  analogSetAttenuation(ADC_0db);
-  digitalWrite(D3, LOW);  // Spannungsteiler wird über D3 versorgt.
-  digitalWrite(D4, LOW);  // Spannungsteiler wird über D3 versorgt.
-}
-
 uint16_t a[3] = {0, 0, 0};
 bool print = false;
 
 void printSensorHeight() {
   a[0] = adcSample(A0, D3, 32);
   float h = analogToSensorHeight(a[0]);
-  // if (abs(a[0] - a[1]) > 10 || print)
-  // {
-  //   if (print)
-  //   {
-  //     Serial.printf("****** %d - %f\n", a[0], h);
-  //     print = false;
-  //   }
-  //   else
-  //   {
-  //     print = true;
-  //   }
-  //   a[1] = a[0];
-  // }
-  Serial.printf("****** %d - %f\n", a[0], h);
+  log_v("****** %d - %f\n", a[0], h);
 }
 
 void printBatteryVoltage() {
   uint16_t batteryRaw = adcSample(A3, D4, 32);
-  Serial.println(batteryRaw);
+  log_v("bat raw: %d", batteryRaw);
+}
+
+RTC_DATA_ATTR uint16_t lastSentRawFillingLevel;
+RTC_DATA_ATTR uint16_t lastSentRawBatteryStatus;
+
+void setup() {
+#if DCORE_DEBUG_LEVEL >= 5
+  Serial.begin(115200);
+  // wait for serial port to connect. Needed for native USB
+  while (!Serial) {
+  }
+  print_wakeup_reason();  // Print the wakeup reason for ESP32
+#endif
+
+  pinMode(D3, OUTPUT);
+  pinMode(D4, OUTPUT);
+  analogSetAttenuation(ADC_0db);
+  digitalWrite(D3, LOW);  // Spannungsteiler wird über D3 versorgt.
+  digitalWrite(D4, LOW);  // Spannungsteiler wird über D3 versorgt.
+
+  uint16_t rawFillingLevel = adcSample(A0, D3, 32);
+  uint16_t rawBatteryStatus = adcSample(A3, D4, 32);
+
+  if ((abs(int32_t(lastSentRawFillingLevel) - int32_t(rawFillingLevel)) > 5) ||
+      (abs(int32_t(lastSentRawBatteryStatus) - int32_t(rawBatteryStatus)) > 5)) {
+    // if (true) {
+    lastSentRawFillingLevel = rawFillingLevel;
+    lastSentRawBatteryStatus = rawBatteryStatus;
+    float fillingLevel = analogToSensorHeight(rawFillingLevel);
+    log_v("fillingLevel (raw - height): %d - %f", rawFillingLevel, fillingLevel);
+    log_v("batteryStatus (raw)         : %f", rawBatteryStatus);
+    Ble::DataElements dataElements = {
+        Ble::DataElement(rawFillingLevel),
+        Ble::DataElement(fillingLevel),
+        Ble::DataElement(rawBatteryStatus)};
+
+    Ble::advertise(dataElements);
+    delay(100);
+  }
+  deepSleep(30);
 }
 
 void loop() {
-  printSensorHeight();
-  printBatteryVoltage();
-  deepSleep(5);
+  // printSensorHeight();
+  // printBatteryVoltage();
+  // Ble::loop();
+  // delay(5000);
+  // deepSleep(5);
 }
