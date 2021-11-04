@@ -55,33 +55,33 @@ uint16_t adcSample(uint8_t aInPin, uint8_t dOutPin, uint16_t samples) {
 }
 
 // analogToSensorHeight converts `x` (raw adc reading) to level height.
-float analogToSensorHeight(uint16_t x) {
+float analogToSensorHeight(float x) {
   float a = 0;
   float b = 0;
-  if (x > 1903) {
-    // 25.4831 - 0.0120773 x
-    a = -0.0120773;
-    b = 25.4831;
-  } else if (x > 1438) {
-    // 47.5172 - 0.0236559 x
-    a = -0.0236559;
-    b = 47.5172;
-  } else if (x > 1025) {
-    // 57.023 - 0.0302663 x
-    a = -0.0302663;
-    b = 57.023;
-  } else if (x > 651) {
-    // 94.516 - 0.0668449 x
-    a = -0.0668449;
-    b = 94.516;
-  } else if (x > 450) {
-    // 106.06 - 0.0845771 x
-    a = -0.0845771;
-    b = 106.06;
+  if (x > 0.595) {
+    // 26.1111 - 39.6825 x
+    a = -39.6825;
+    b = 26.1111;
+  } else if (x > 0.448) {
+    // 46.619 - 74.1497 x
+    a = -74.1497;
+    b = 46.619;
+  } else if (x > 0.316) {
+    // 55.8242 - 94.697 x
+    a = -94.697;
+    b = 55.8242;
+  } else if (x > 0.198) {
+    // 93.6525 - 214.407 x
+    a = -214.407;
+    b = 93.6525;
+  } else if (x > 0.135) {
+    // 104.314 - 268.254 x
+    a = -268.254;
+    b = 104.314;
   } else {
-    // 97.25 - 0.065 x
-    a = -0.065;
-    b = 97.25;
+    // 95.7622 - 204.905 x
+    a = -204.905;
+    b = 95.7622;
   }
   return a * x + b;
 }
@@ -100,6 +100,8 @@ void printBatteryVoltage() {
   log_v("bat raw: %d", batteryRaw);
 }
 
+RTC_DATA_ATTR uint8_t wakeupCounter = 0;
+RTC_DATA_ATTR uint8_t txCounter = 0;
 RTC_DATA_ATTR uint16_t lastSentRawFillingLevel;
 RTC_DATA_ATTR uint16_t lastSentRawBatteryStatus;
 
@@ -110,7 +112,10 @@ void setup() {
   while (!Serial) {
   }
   print_wakeup_reason();  // Print the wakeup reason for ESP32
+  log_v("Serial enabled");
 #endif
+
+  uint32_t sleepSeconds = 30;
 
   pinMode(D3, OUTPUT);
   pinMode(D4, OUTPUT);
@@ -120,24 +125,50 @@ void setup() {
 
   uint16_t rawFillingLevel = adcSample(A0, D3, 32);
   uint16_t rawBatteryStatus = adcSample(A3, D4, 32);
+  float normalisedFillingLevelRaw = (float)rawFillingLevel / (float)rawBatteryStatus;
+  float fillingLevel = analogToSensorHeight(normalisedFillingLevelRaw);
+  if (fillingLevel < 0.0) {
+    fillingLevel = 0.0;
+  } else if (fillingLevel > 94.0) {
+    fillingLevel = 94.0;
+  }
+  if ((wakeupCounter % 8) == 0) {
+    txCounter = 1;
+  }
+  if (fillingLevel > 0.5) {
+    sleepSeconds = 10;
+    txCounter = 5;
+  }
 
-  if ((abs(int32_t(lastSentRawFillingLevel) - int32_t(rawFillingLevel)) > 5) ||
-      (abs(int32_t(lastSentRawBatteryStatus) - int32_t(rawBatteryStatus)) > 5)) {
+  // if ((abs(int32_t(lastSentRawFillingLevel) - int32_t(rawFillingLevel)) > 5) ||
+  //     (abs(int32_t(lastSentRawBatteryStatus) - int32_t(rawBatteryStatus)) > 5)) {
+  if (txCounter > 0) {
     // if (true) {
+    txCounter--;
     lastSentRawFillingLevel = rawFillingLevel;
     lastSentRawBatteryStatus = rawBatteryStatus;
-    float fillingLevel = analogToSensorHeight(rawFillingLevel);
-    log_v("fillingLevel (raw - height): %d - %f", rawFillingLevel, fillingLevel);
-    log_v("batteryStatus (raw)         : %f", rawBatteryStatus);
+
+    float fillingLevel = analogToSensorHeight(normalisedFillingLevelRaw);
+    if (fillingLevel < 0.0) {
+      fillingLevel = 0.0;
+    } else if (fillingLevel > 94.0) {
+      fillingLevel = 94.0;
+    }
+    log_v("fillingLevel (raw - height)     : %d - %f", rawFillingLevel, fillingLevel);
+    log_v("batteryStatus (raw)             : %d", rawBatteryStatus);
+    log_v("normalisedFillingLevelRaw (raw) : %f", normalisedFillingLevelRaw);
     Ble::DataElements dataElements = {
+        Ble::DataElement(wakeupCounter),
         Ble::DataElement(rawFillingLevel),
         Ble::DataElement(fillingLevel),
-        Ble::DataElement(rawBatteryStatus)};
+        Ble::DataElement(rawBatteryStatus),
+        Ble::DataElement(normalisedFillingLevelRaw)};
 
     Ble::advertise(dataElements);
-    delay(100);
+    delay(1000);
   }
-  deepSleep(30);
+  wakeupCounter++;
+  deepSleep(sleepSeconds);
 }
 
 void loop() {

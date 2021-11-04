@@ -1,6 +1,15 @@
 {
   "files.associations": {
-    "cmath": "cpp"
+    "cmath": "cpp",
+    "array": "cpp",
+    "initializer_list": "cpp",
+    "utility": "cpp"
   },
-  "C_Cpp.clang_format_fallbackStyle": "{ BasedOnStyle: Google, IndentWidth: 2, TabWidth: 2}"
+  "C_Cpp.clang_format_fallbackStyle": "{ BasedOnStyle: Google, IndentWidth: 2, TabWidth: 2, ColumnLimit: 0}",
+  "[cpp]": {
+    "editor.formatOnType": false
+  },
+  "[c]": {
+    "editor.formatOnType": false
+  }
 }

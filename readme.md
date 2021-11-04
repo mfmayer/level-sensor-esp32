@@ -6,33 +6,35 @@ This project is used to read a sensor that has different discrete resistance val
 
 The following table shows the values and according sensor height that have been manually read and measured. Based on that I've derived sections with linear interpolation in between:
 
-| Height [cm] | ADC  | ADC Points for linear interpolation |
-| ----------- | ---- | ----------------------------------- |
-| 0           | 2110 | 2110                                |
-| 1,1         | 2004 |                                     |
-| 2,5         | 1904 | 1903                                |
-| 4,6         | 1801 |                                     |
-| 7           | 1714 |                                     |
-| 9,3         | 1625 |                                     |
-| 11,3        | 1532 |                                     |
-| 13,4        | 1440 | 1438                                |
-| 15,4        | 1373 |                                     |
-| 17,6        | 1305 |                                     |
-| 19,6        | 1236 |                                     |
-| 21,8        | 1167 |                                     |
-| 23,8        | 1099 |                                     |
-| 25,9        | 1026 | 1025                                |
-| 32,3        | 932  |                                     |
-| 38,8        | 840  |                                     |
-| 45          | 748  |                                     |
-| 51,2        | 652  | 651                                 |
-| 59,5        | 557  |                                     |
-| 68,1        | 451  | 450                                 |
-| 76,5        | 321  |                                     |
-| 84,8        | 187  |                                     |
-| 94          | 50   | 50                                  |
+| Height [cm] | ADC(sensor) / ADC(VBAT/3) | Linearization points                      |
+| ----------- | ------------------------- | ----------------------------------------- |
+| 0           | 0,658                     | linear fit {{0.658, 0}, {0.595, 2.5}}     |
+| 1,1         | 0,626                     |                                           |
+| 2,5         | 0,595                     | linear fit {{0.595, 2.5}, {0.448, 13.4}}  |
+| 4,6         | 0,562                     |                                           |
+| 7           | 0,534                     |                                           |
+| 9,3         | 0,507                     |                                           |
+| 11,3        | 0,477                     |                                           |
+| 13,4        | 0,448                     | linear fit {{0.448, 13.4}, {0.316, 25.9}} |
+| 15,4        | 0,427                     |                                           |
+| 17,6        | 0,406                     |                                           |
+| 19,6        | 0,383                     |                                           |
+| 21,8        | 0,362                     |                                           |
+| 23,8        | 0,34                      |                                           |
+| 25,9        | 0,316                     | linear fit {{0.316, 25.9}, {0.198, 51.2}} |
+| 32,3        | 0,287                     |                                           |
+| 38,8        | 0,258                     |                                           |
+| 45          | 0,228                     |                                           |
+| 51,2        | 0,198                     | linear fit {{0.198, 51.2}, {0.135, 68.1}} |
+| 59,5        | 0,166                     |                                           |
+| 68,1        | 0,135                     | linear fit {{0.135, 68.1}, {0.0086, 94}}  |
+| 76,5        | 0,0938                    |                                           |
+| 84,8        | 0,0511                    |                                           |
+| 94          | 0,0086                    | X                                         |
 
 ![sensor readings](doc/images/2021-10-14-07-47-35.png)
+
+To compute interpolating polymomial WolframAlpha's [interpolating polynomial calculator](https://www.wolframalpha.com/input/?i=interpolating+polynomial+calculator&assumption=%7B%22F%22%2C+%22InterpolatingPolynomialCalculator%22%2C+%22data2%22%7D+-%3E%22%7B%7B2110%2C0%7D%2C%7B1903%2C2.5%7D%7D%22) is a great help.
 
 ```C++
 #include <Arduino.h>

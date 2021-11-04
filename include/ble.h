@@ -34,7 +34,7 @@ namespace Ble {
  */
 class DataElement {
  public:
-  DataElement(void *, size_t);
+  DataElement(const void *, size_t);
   DataElement(uint32_t);
   DataElement(int32_t);
   DataElement(float_t);
