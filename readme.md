@@ -1,12 +1,20 @@
 # esp32-level-sensor
 
-This project is used to read a sensor that has different discrete resistance values depending on the height of the float. An ESP32 is used to measure the resistor using a voltage divider:
+This project is used to read a level sensor (water / fuel) that has different discrete resistance values depending on the height of the float. In this project a sensor has been used with 240Ω (max height) - 30Ω (min height).
 
-![voltage divider](doc/images/2021-10-14-10-05-25.png)
+## Schematic and Readings
+
+Via an ESP32's ADCs and voltage dividers the sensor as well as the battery voltage is measured. Sensor reading is put in relation to battery voltage reading to reduce influence of decreasing battery voltage over the time.
+
+![Schematic](doc/images/2021-11-05-21-11-57.png)
 
 The following table shows the values and according sensor height that have been manually read and measured. Based on that I've derived sections with linear interpolation in between:
 
-| Height [cm] | ADC(sensor) / ADC(VBAT/3) | Linearization points                      |
+![sensor readings](doc/images/2021-11-05-21-11-01.png)
+
+To compute interpolating polymomial WolframAlpha's [interpolating polynomial calculator](https://www.wolframalpha.com/input/?i=interpolating+polynomial+calculator&assumption=%7B%22F%22%2C+%22InterpolatingPolynomialCalculator%22%2C+%22data2%22%7D+-%3E%22%7B%7B2110%2C0%7D%2C%7B1903%2C2.5%7D%7D%22) was a great help:
+
+| Height [cm] | ADC(Sensor) / ADC(VBAT/3) | Linearization points                      |
 | ----------- | ------------------------- | ----------------------------------------- |
 | 0           | 0,658                     | linear fit {{0.658, 0}, {0.595, 2.5}}     |
 | 1,1         | 0,626                     |                                           |
@@ -32,9 +40,7 @@ The following table shows the values and according sensor height that have been 
 | 84,8        | 0,0511                    |                                           |
 | 94          | 0,0086                    | X                                         |
 
-![sensor readings](doc/images/2021-10-14-07-47-35.png)
-
-To compute interpolating polymomial WolframAlpha's [interpolating polynomial calculator](https://www.wolframalpha.com/input/?i=interpolating+polynomial+calculator&assumption=%7B%22F%22%2C+%22InterpolatingPolynomialCalculator%22%2C+%22data2%22%7D+-%3E%22%7B%7B2110%2C0%7D%2C%7B1903%2C2.5%7D%7D%22) is a great help.
+## Software
 
 ```C++
 #include <Arduino.h>
