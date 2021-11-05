@@ -98,8 +98,8 @@ bool advertise(DataElements dataElements) {
   // advData.p_service_uuid = nullptr;
   // advData.flag = (ESP_BLE_ADV_FLAG_GEN_DISC | ESP_BLE_ADV_FLAG_BREDR_NOT_SPT);
 
-  advParams.adv_int_min = 0x40;
-  advParams.adv_int_max = 0x80;
+  advParams.adv_int_min = 0x20;
+  advParams.adv_int_max = 0x40;
   advParams.adv_type = ADV_TYPE_IND;
   advParams.own_addr_type = BLE_ADDR_TYPE_PUBLIC;
   advParams.channel_map = ADV_CHNL_ALL;

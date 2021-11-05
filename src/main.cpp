@@ -132,14 +132,20 @@ void setup() {
   } else if (fillingLevel > 94.0) {
     fillingLevel = 94.0;
   }
+
   if ((wakeupCounter % 8) == 0) {
-    txCounter = 1;
+    if (txCounter <= 0) {
+      txCounter = 1;
+    }
   }
   if (fillingLevel > 0.5) {
-    sleepSeconds = 10;
     txCounter = 5;
   }
+  if (txCounter > 1) {
+    sleepSeconds = 10;
+  }
 
+  log_v("wakeupCounter: %d (wakeupCounter mod 8): %d txCounter: %d sleepSeconds: %d", wakeupCounter, (wakeupCounter % 8), txCounter, sleepSeconds);
   // if ((abs(int32_t(lastSentRawFillingLevel) - int32_t(rawFillingLevel)) > 5) ||
   //     (abs(int32_t(lastSentRawBatteryStatus) - int32_t(rawBatteryStatus)) > 5)) {
   if (txCounter > 0) {
@@ -165,7 +171,7 @@ void setup() {
         Ble::DataElement(normalisedFillingLevelRaw)};
 
     Ble::advertise(dataElements);
-    delay(1000);
+    delay(80);
   }
   wakeupCounter++;
   deepSleep(sleepSeconds);
