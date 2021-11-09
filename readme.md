@@ -1,18 +1,42 @@
 # esp32-level-sensor
 
-This project is used to read a level sensor (water / fuel) that has different discrete resistance values depending on the height of the float. In this project a sensor has been used with 240Ω (max height) - 30Ω (min height).
+This project is used to read a level sensor (water / fuel) that has different discrete resistance values depending on the height of the float and provide them via Bluetooth Low Energy (Bluetooth LE) advertisement messages.
 
-## Schematic and Readings
+Completely assembled sensor and tube in which the sensor shall be put:
+
+![Completely assembled Sensor](doc/images/sensor.png)
+
+## Microcontroller Board
+
+As microcontroller board the Firebeetle ESP32 has been chosen, because it's cheap, it supports Bluetooth Low Energy and it needs ultra low power in hibernate sleep mode, in which only the RTC is powered and power consumption goes down to 0.008 mA.
+
+See also: <https://diyi0t.com/reduce-the-esp32-power-consumption/>
+
+The board gets powered with a Lithium CR123 battery.
+
+## Sensor
+
+It was crucial to get a reliable and robust level measurement, so I've decided not to use ultra sonic sensors or similar but a sensor with a float and reed switches that switch different resistors at different heights from 240 Ω at the min height and 30 Ω at the max height.
+
+## Case and Spacer
+
+The case at the top and spacer at the bottom are designed in FreeCAD and printed with a filament 3d printer.
+
+![Case and Spacer](doc/images/3d-prints.png)
+
+## Schematic
 
 Via an ESP32's ADCs and voltage dividers the sensor as well as the battery voltage is measured. Sensor reading is put in relation to battery voltage reading to reduce influence of decreasing battery voltage over the time.
 
-![Schematic](doc/images/2021-11-05-21-11-57.png)
+![Schematic](doc/images/schematic.png)
 
-The following table shows the values and according sensor height that have been manually read and measured. Based on that I've derived sections with linear interpolation in between:
+## Sensor readings
 
-![sensor readings](doc/images/2021-11-05-21-11-01.png)
+The following table shows the values ADC(Sensor) / ADC(VBAT/3) and according sensor height that have been manually read and measured. Based on that I've derived sections with linear interpolation in between:
 
-To compute interpolating polymomial WolframAlpha's [interpolating polynomial calculator](https://www.wolframalpha.com/input/?i=interpolating+polynomial+calculator&assumption=%7B%22F%22%2C+%22InterpolatingPolynomialCalculator%22%2C+%22data2%22%7D+-%3E%22%7B%7B2110%2C0%7D%2C%7B1903%2C2.5%7D%7D%22) was a great help:
+![sensor readings](doc/images/sensor_readings.png)
+
+To compute interpolating polymomial, WolframAlpha's [interpolating polynomial calculator](https://www.wolframalpha.com/input/?i=interpolating+polynomial+calculator&assumption=%7B%22F%22%2C+%22InterpolatingPolynomialCalculator%22%2C+%22data2%22%7D+-%3E%22%7B%7B2110%2C0%7D%2C%7B1903%2C2.5%7D%7D%22) was a great help:
 
 | Height [cm] | ADC(Sensor) / ADC(VBAT/3) | Linearization points                      |
 | ----------- | ------------------------- | ----------------------------------------- |
@@ -42,45 +66,40 @@ To compute interpolating polymomial WolframAlpha's [interpolating polynomial cal
 
 ## Software
 
-```C++
-#include <Arduino.h>
+The sensor wakes up every few minutes to check the height, battery and wakeup cycle. In case the sensor's height is above 0.5 cm or it woke up for more than 8 cycles since last time it sent the readings, it sends them again via Bluetooth Low Energy. Additionally if the hight is above 0.5 cm, the deep sleep time is also decreased to have a higher sampling rate while there is water registered by the sensor.
 
-void setup()
-{
-  Serial.begin(115200);
-  while (!Serial) {}  // wait for serial port to connect. Needed for native USB
-  pinMode(D3, OUTPUT);
-  analogSetAttenuation(ADC_0db);
-  digitalWrite(D3, HIGH); // Spannungsteiler wird über D3 versorgt.
-}
+### Bluetooth Low Energy Advertisements (BLE)
 
-uint32_t analogSample(uint8_t pin, uint16_t samples)
-{
-  uint32_t avg = 0;
-  for (int i = 0; i < samples; i++)
-  {
-    uint16_t a = analogRead(pin);
-    avg = avg + a;
+To save battery power the readings shall be provided as manufacturer specific data within sent BLE advertisisements. That way the ESP32 can hibernate again without waiting for a potential incoming connection to read a charactersitic.
+
+For this purpose I've written some helper clases and methods that allow to append sensor readings of integer and float type to a BLE advertisement message.
+
+```cpp
+void setup() {
+  // read sensor and battery power
+  // set txCounter if readings shall be sent in this wake cycle
+  // set sleepSeconds how long the ESP32 shall hibernate after this cycle
+
+  if (txCounter > 0) {
+    // sensor readings shall be sent in this wake cycle when txCounter > 0
+    Ble::DataElements dataElements = {
+        Ble::DataElement(wakeupCounter),
+        Ble::DataElement(rawFillingLevel),
+        Ble::DataElement(fillingLevel),
+        Ble::DataElement(rawBatteryStatus),
+        Ble::DataElement(normalisedFillingLevelRaw)};
+
+    Ble::advertise(dataElements);
+    delay(80); // wait as long as the message is to be sent repeatedly
   }
-  avg = avg / samples;
-  return avg;
-}
-
-int32_t lastAvg = 0;
-int32_t state = 0;
-
-void loop()
-{
-  int32_t a = (int32_t)analogSample(A0, 256);
-  if (state == 0 && abs(a - lastAvg) > 10)
-  {
-    state = 1;
-  }
-  if (state == 1 && abs(a - lastAvg) < 10)
-  {
-    state = 0;
-    Serial.printf("%d\n", a);
-  }
-  lastAvg = a;
+  wakeupCounter++;
+  deepSleep(sleepSeconds);
 }
 ```
+
+### Home Assistant Integration
+
+I've also written a generic BLE Home Assistant custom component that allows to import the sensor readings. I've tried to design that compnent as generic as possible so that multiple advertisements as well as BLE characteristic readings can be configured to be read and decoded appropriately.
+
+See:
+<https://github.com/mfmayer/home_assistant_custom_components/tree/main/ble_generic_sensor>

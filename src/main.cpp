@@ -33,7 +33,7 @@ void deepSleep(uint32_t secondsToSleep) {
   // Convert time before wakeup to microseconds
   esp_sleep_enable_timer_wakeup(secondsToSleep * 1000000);
   esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_OFF);
-#if DCORE_DEBUG_LEVEL >= 5
+#if CORE_DEBUG_LEVEL >= 5
   log_v("Going to deep-sleep in 5 sec for %d sec\n", secondsToSleep);
   Serial.flush();
 #endif
@@ -106,7 +106,7 @@ RTC_DATA_ATTR uint16_t lastSentRawFillingLevel;
 RTC_DATA_ATTR uint16_t lastSentRawBatteryStatus;
 
 void setup() {
-#if DCORE_DEBUG_LEVEL >= 5
+#if CORE_DEBUG_LEVEL >= 5
   Serial.begin(115200);
   // wait for serial port to connect. Needed for native USB
   while (!Serial) {
@@ -145,9 +145,10 @@ void setup() {
     sleepSeconds = 10;
   }
 
+#if CORE_DEBUG_LEVEL >= 5
   log_v("wakeupCounter: %d (wakeupCounter mod 8): %d txCounter: %d sleepSeconds: %d", wakeupCounter, (wakeupCounter % 8), txCounter, sleepSeconds);
-  // if ((abs(int32_t(lastSentRawFillingLevel) - int32_t(rawFillingLevel)) > 5) ||
-  //     (abs(int32_t(lastSentRawBatteryStatus) - int32_t(rawBatteryStatus)) > 5)) {
+#endif
+
   if (txCounter > 0) {
     // if (true) {
     txCounter--;
@@ -160,9 +161,13 @@ void setup() {
     } else if (fillingLevel > 94.0) {
       fillingLevel = 94.0;
     }
+
+#if CORE_DEBUG_LEVEL >= 5
     log_v("fillingLevel (raw - height)     : %d - %f", rawFillingLevel, fillingLevel);
     log_v("batteryStatus (raw)             : %d", rawBatteryStatus);
     log_v("normalisedFillingLevelRaw (raw) : %f", normalisedFillingLevelRaw);
+#endif
+
     Ble::DataElements dataElements = {
         Ble::DataElement(wakeupCounter),
         Ble::DataElement(rawFillingLevel),
@@ -178,9 +183,4 @@ void setup() {
 }
 
 void loop() {
-  // printSensorHeight();
-  // printBatteryVoltage();
-  // Ble::loop();
-  // delay(5000);
-  // deepSleep(5);
 }

@@ -32,17 +32,14 @@ size_t getSize(DataElements dataElements) {
 }
 
 void printHex(uint8_t *buf, size_t size) {
-  // unsigned char buf[] = {0, 1, 10, 11};
-  /* target buffer should be large enough */
-  char str[72];
-
+  char str[32 * 2 + 1];
+  size = (size > 32) ? (32) : (size);
   unsigned char *pin = buf;
   const char *hex = "0123456789abcdef";
   char *pout = str;
   for (; pin < buf + size; pout += 2, pin++) {
     pout[0] = hex[(*pin >> 4) & 0xF];
     pout[1] = hex[*pin & 0xF];
-    // pout[2] = ':';
   }
   pout[0] = 0;
   log_v("hex: %s", str);
